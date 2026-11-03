@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MISI PUZZLE POLIGON - Matematik Tingkatan 2</title>
+  <!-- Tailwind CSS & Font Inter -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icon -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            fredoka: ['Fredoka', 'sans-serif'],
+            sans: ['Inter', 'sans-serif']
+          },
+          colors: {
+            polypink: '#FF4081',
+            polypurple: '#7C4DFF',
+            polyblue: '#00E5FF',
+            polygreen: '#00E676',
+            polyamber: '#FFAB00'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Fredoka', cursive, 'Inter', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    .bg-pattern {
+      background-color: #0f172a;
+      background-image: radial-gradient(#334155 1.5px, transparent 1.5px), radial-gradient(#334155 1.5px, #0f172a 1.5px);
+      background-size: 60px 60px;
+      background-position: 0 0, 30px 30px;
+    }
+
+    .draggable-card {
+      touch-action: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      cursor: grab;
+    }
+    .draggable-card:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+    }
+
+    .drop-zone {
+      transition: all 0.2s ease;
+    }
+    .drop-zone.drag-over {
+      border-color: #3b82f6;
+      background-color: rgba(59, 130, 246, 0.15);
+      transform: scale(1.02);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(124, 77, 255, 0.4); }
+      50% { box-shadow: 0 0 30px rgba(124, 77, 255, 0.8); }
+    }
+    .glow-effect {
+      animation: pulseGlow 3s infinite;
+    }
+
+    .glass-card {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+
+<body class="bg-pattern min-h-screen text-slate-100 flex flex-col justify-between overflow-x-hidden">
+
+  <!-- TOP BAR / HEADER -->
+  <header class="w-full bg-slate-900/80 border-b border-slate-700 p-4 sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center text-white shadow-lg font-bold text-xl">
+          <i class="fa-solid fa-shapes"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-polyblue via-indigo-300 to-polypink">
+            MISI PUZZLE POLIGON
+          </h1>
+          <p class="text-xs text-slate-400 font-sans">Matematik Tingkatan 2</p>
+        </div>
+      </div>
+
+      <!-- STATUS HUD (Tunjuk semasa permainan) -->
+      <div id="hud-bar" class="hidden flex items-center gap-4 sm:gap-6 bg-slate-800/90 px-4 py-2 rounded-2xl border border-slate-700">
+        <!-- Level Badge -->
+        <div class="text-center">
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 block font-sans">Peringkat</span>
+          <span id="hud-level" class="text-sm font-bold text-polyamber">Level 1</span>
+        </div>
+        
+        <!-- Pemasa -->
+        <div class="text-center border-l border-slate-700 pl-4">
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 block font-sans">Masa</span>
+          <span id="hud-timer" class="text-sm font-mono font-bold text-polyblue">00:00</span>
+        </div>
+
+        <!-- Nyawa -->
+        <div class="text-center border-l border-slate-700 pl-4">
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 block font-sans">Nyawa</span>
+          <div id="hud-lives" class="flex gap-1 text-red-500 text-sm">
+            <i class="fa-solid fa-heart"></i>
+            <i class="fa-solid fa-heart"></i>
+            <i class="fa-solid fa-heart"></i>
+          </div>
+        </div>
+
+        <!-- Skor -->
+        <div class="text-center border-l border-slate-700 pl-4">
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 block font-sans">Markah</span>
+          <span id="hud-score" class="text-sm font-bold text-polygreen">0</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTAINER UTAMA -->
+  <main class="w-full max-w-5xl mx-auto p-4 flex-grow flex flex-col justify-center items-center my-4">
+
+    <!-- 1. PAPARAN UTAMA (START SCREEN) -->
+    <div id="screen-start" class="w-full glass-card rounded-3xl p-6 md:p-10 shadow-2xl glow-effect text-center max-w-2xl">
+      <!-- Ilustrasi Poligon Dinamik Header -->
+      <div class="flex justify-center items-center gap-3 mb-4">
+        <svg class="w-12 h-12 text-pink-500 animate-bounce" viewBox="0 0 100 100">
+          <polygon points="50,5 95,95 5,95" fill="currentColor" opacity="0.8"/>
+        </svg>
+        <svg class="w-12 h-12 text-cyan-400 animate-pulse" viewBox="0 0 100 100">
+          <polygon points="20,10 80,10 95,80 5,80" fill="currentColor" opacity="0.8"/>
+        </svg>
+        <svg class="w-12 h-12 text-emerald-400 animate-bounce" viewBox="0 0 100 100">
+          <polygon points="50,5 95,35 80,95 20,95 5,35" fill="currentColor" opacity="0.8"/>
+        </svg>
+      </div>
+
+      <h2 class="text-3xl md:text-4xl font-extrabold text-white mb-2">SELAMAT DATANG!</h2>
+      <p class="text-slate-300 font-sans mb-6 text-sm md:text-base">
+        Uji pengetahuan poligon anda melalui misi teka-teki interaktif ini. Seret dan lepaskan nama poligon ke bentuk yang betul!
+      </p>
+
+      <!-- Borang Nama & Kelas -->
+      <form id="form-mula" onsubmit="mulakanPermainan(event)" class="space-y-4 text-left max-w-md mx-auto">
+        <div>
+          <label class="block text-xs font-sans text-slate-300 uppercase tracking-wider mb-1 font-semibold">Nama Murid:</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            <input type="text" id="input-nama" required placeholder="Contoh: Amirul Bin Ahmad"
+              class="w-full pl-10 pr-4 py-3 bg-slate-800/90 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-polypurple font-sans transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-sans text-slate-300 uppercase tracking-wider mb-1 font-semibold">Kelas:</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </span>
+            <input type="text" id="input-kelas" required placeholder="Contoh: 2 Bestari"
+              class="w-full pl-10 pr-4 py-3 bg-slate-800/90 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-polypurple font-sans transition">
+          </div>
+        </div>
+
+        <!-- Panduan Ringkas -->
+        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/60 font-sans text-xs text-slate-300 space-y-1">
+          <p class="font-bold text-polyamber text-sm font-fredoka mb-1"><i class="fa-solid fa-circle-info"></i> Arahan Permainan:</p>
+          <p>• <strong>Level 1:</strong> Kenali Poligon asas (8 soalan).</p>
+          <p>• <strong>Level 2:</strong> Cabaran Poligon (10 soalan).</p>
+          <p>• <strong>Level 3:</strong> Master Poligon dengan pelbagai saiz & orientasi (10 soalan).</p>
+          <p>• Mempunyai <strong>3 Nyawa ❤️</strong>. Setiap jawapan betul: <strong>+10 Markah</strong>. Jawapan salah: <strong>-1 Nyawa</strong>.</p>
+        </div>
+
+        <button type="submit" 
+          class="w-full py-4 bg-gradient-to-r from-polypurple via-indigo-600 to-polypink hover:brightness-110 active:scale-95 transition text-white font-bold text-lg rounded-xl shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-play"></i> MULA PERMAINAN
+        </button>
+      </form>
+    </div>
+
+    <!-- 2. PAPARAN GAMEPLAY INTERAKTIF -->
+    <div id="screen-game" class="w-full glass-card rounded-3xl p-4 md:p-8 shadow-2xl hidden flex flex-col items-center">
+      
+      <!-- Tajuk & Kemajuan Soalan -->
+      <div class="w-full flex justify-between items-center mb-4 pb-2 border-b border-slate-700 font-sans">
+        <div>
+          <span id="level-title" class="text-lg font-bold text-polyamber font-fredoka">Level 1: Kenali Poligon</span>
+          <p id="level-desc" class="text-xs text-slate-400">Padankan nama poligon yang betul mengikut bilangan sisinya.</p>
+        </div>
+        <div class="text-right">
+          <span class="text-xs text-slate-400 font-bold block">Kemajuan Soalan</span>
+          <span id="question-tracker" class="text-sm font-mono font-bold text-polyblue">1 / 8</span>
+        </div>
+      </div>
+
+      <!-- KAWASAN SOALAN UTAMA -->
+      <div id="puzzle-board" class="w-full grid grid-cols-1 md:grid-cols-2 gap-6 my-2 items-center">
+        
+        <!-- RUANG DROP (Bentuk Poligon) -->
+        <div class="flex flex-col items-center justify-center bg-slate-900/60 p-6 rounded-2xl border-2 border-dashed border-slate-600 min-h-[300px] relative overflow-hidden drop-zone" id="drop-target">
+          <span class="absolute top-3 left-3 bg-slate-800 text-slate-300 font-sans text-xs px-2.5 py-1 rounded-full border border-slate-700">
+            <i class="fa-solid fa-draw-polygon text-polyblue"></i> Poligon
+          </span>
+
+          <!-- Container Gambar Rajah Poligon SVG -->
+          <div id="svg-container" class="w-64 h-64 flex items-center justify-center my-2 transition-transform duration-300">
+            <!-- SVG dinjana secara JavaScript -->
+          </div>
+
+          <p class="text-xs text-slate-400 font-sans italic text-center mt-2">
+            <i class="fa-solid fa-hand-pointer animate-bounce"></i> Lepaskan nama poligon di ruang ini
+          </p>
+        </div>
+
+        <!-- RUANG DRAG (Pilihan Nama Poligon) -->
+        <div class="flex flex-col justify-center">
+          <h3 class="text-sm font-sans font-semibold text-slate-300 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-cubes text-polypink"></i> Pilih dan seret jawapan:
+          </h3>
+          <div id="options-container" class="grid grid-cols-2 gap-3">
+            <!-- Kotak Pilihan Pilihan Jawapan ditarik di sini -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Maklum Balas Mesej Interaktif -->
+      <div id="feedback-message" class="w-full mt-4 p-3 rounded-xl text-center font-bold text-sm hidden transition-all duration-300">
+      </div>
+    </div>
+
+    <!-- 3. PAPARAN TAMAT PERMAINAN (GAMEOVER / KEMENANGAN) -->
+    <div id="screen-result" class="w-full glass-card rounded-3xl p-6 md:p-10 shadow-2xl hidden text-center max-w-xl">
+      <div id="result-icon-container" class="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-4xl mb-4 shadow-xl">
+        <!-- Dynamic Icon -->
+      </div>
+
+      <h2 id="result-title" class="text-3xl font-black text-white mb-1">TAHNIAH!</h2>
+      <p id="result-subtitle" class="text-slate-300 font-sans text-sm mb-6">Misi Poligon telah berjaya diselesaikan!</p>
+
+      <!-- KAD RINGKASAN KEPUTUSAN -->
+      <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 font-sans space-y-3 mb-6 text-left">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-xs text-slate-400 uppercase">Nama Murid</span>
+          <span id="res-nama" class="font-bold text-white"></span>
+        </div>
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-xs text-slate-400 uppercase">Kelas</span>
+          <span id="res-kelas" class="font-bold text-white"></span>
+        </div>
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-xs text-slate-400 uppercase">Jumlah Skor</span>
+          <span id="res-skor" class="font-bold text-polygreen text-lg font-fredoka"></span>
+        </div>
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-xs text-slate-400 uppercase">Tempoh Masa</span>
+          <span id="res-masa" class="font-bold text-polyblue font-mono"></span>
+        </div>
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-xs text-slate-400 uppercase">Baki Nyawa</span>
+          <span id="res-nyawa" class="font-bold text-red-400 flex items-center gap-1"></span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-xs text-slate-400 uppercase">Status Permainan</span>
+          <span id="res-status" class="px-3 py-0.5 rounded-full text-xs font-bold"></span>
+        </div>
+      </div>
+
+      <div id="save-status" class="text-xs font-sans text-slate-400 mb-4 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-spinner fa-spin text-polyblue"></i> Menyimpan rekod ke Google Sheets...
+      </div>
+
+      <button onclick="semulaPermainan()" 
+        class="w-full py-3.5 bg-gradient-to-r from-polygreen to-emerald-600 hover:brightness-110 active:scale-95 transition text-slate-900 font-bold text-lg rounded-xl shadow-lg flex items-center justify-center gap-2">
+        <i class="fa-solid fa-rotate-right"></i> MAIN SEMULA
+      </button>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="w-full bg-slate-950/80 border-t border-slate-800 py-3 text-center text-xs text-slate-500 font-sans">
+    Permainan Pendidikan Matematik Tingkatan 2 &copy; MISI PUZZLE POLIGON | Google Apps Script
+  </footer>
+
+  <!-- JAVASCRIPT GAMING LOGIC -->
+  <script>
+    // DATA POLIGON UTAMA (8 JENIS POLIGON)
+    const SHAPES_DATA = [
+      { name: "Segi tiga", sides: 3, color: "#FF4081" },
+      { name: "Segi empat", sides: 4, color: "#7C4DFF" },
+      { name: "Segi lima", sides: 5, color: "#00E5FF" },
+      { name: "Segi enam", sides: 6, color: "#00E676" },
+      { name: "Segi tujuh", sides: 7, color: "#FFAB00" },
+      { name: "Segi lapan", sides: 8, color: "#FF6D00" },
+      { name: "Segi sembilan", sides: 9, color: "#E040FB" },
+      { name: "Segi sepuluh", sides: 10, color: "#00B0FF" }
+    ];
+
+    // GAMING STATE VARIABLES
+    let player = { nama: "", kelas: "" };
+    let currentLevel = 1; // 1, 2, atau 3
+    let score = 0;
+    let lives = 3;
+    let timerSeconds = 0;
+    let timerInterval = null;
+    let questionsList = [];
+    let currentQuestionIndex = 0;
+    let draggedOption = null;
+
+    // EVENT LISTENERS AWAL
+    window.addEventListener('DOMContentLoaded', () => {
+      initDragAndDropHandlers();
+    });
+
+    // PERMULAAN GAME
+    function mulakanPermainan(e) {
+      e.preventDefault();
+      const nama = document.getElementById('input-nama').value.trim();
+      const kelas = document.getElementById('input-kelas').value.trim();
+
+      if (!nama || !kelas) return;
+
+      player.nama = nama;
+      player.kelas = kelas;
+
+      // Reset State
+      score = 0;
+      lives = 3;
+      timerSeconds = 0;
+      currentLevel = 1;
+
+      // Kemaskini Paparan HUD
+      updateHUD();
+      startTimer();
+
+      // Tukar Paparan
+      document.getElementById('screen-start').classList.add('hidden');
+      document.getElementById('screen-result').classList.add('hidden');
+      document.getElementById('screen-game').classList.remove('hidden');
+      document.getElementById('hud-bar').classList.remove('hidden');
+
+      // Bina Soalan Level 1
+      loadLevel(1);
+    }
+
+    // PEMASA PERMAINAN
+    function startTimer() {
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+        const secs = String(timerSeconds % 60).padStart(2, '0');
+        document.getElementById('hud-timer').innerText = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    // MEMUATKAN LEVEL
+    function loadLevel(levelNum) {
+      currentLevel = levelNum;
+      currentQuestionIndex = 0;
+
+      let totalQuestions = 8;
+      let levelTitleStr = "Level 1: Kenali Poligon";
+      let levelDescStr = "Padankan nama poligon yang betul dengan gambar rajah.";
+
+      if (levelNum === 2) {
+        totalQuestions = 10;
+        levelTitleStr = "Level 2: Cabaran Poligon";
+        levelDescStr = "Cabar minda anda dengan pilihan nama poligon terkocok!";
+      } else if (levelNum === 3) {
+        totalQuestions = 10;
+        levelTitleStr = "Level 3: Master Poligon";
+        levelDescStr = "Bentuk poligon dipusingkan dengan saiz yang pelbagai!";
+      }
+
+      document.getElementById('level-title').innerText = levelTitleStr;
+      document.getElementById('level-desc').innerText = levelDescStr;
+
+      // Bina Senarai Soalan Teracak
+      questionsList = generateQuestions(totalQuestions, levelNum);
+      renderCurrentQuestion();
+    }
+
+    // JANA SENARAI SOALAN LEVELED
+    function generateQuestions(count, level) {
+      let q = [];
+      for (let i = 0; i < count; i++) {
+        // Pilih poligon rawak dari data
+        const shape = SHAPES_DATA[Math.floor(Math.random() * SHAPES_DATA.length)];
+        
+        // Tetapan khas mengikut level
+        let scale = 1;
+        let rotation = 0;
+
+        if (level === 3) {
+          scale = 0.75 + Math.random() * 0.45; // saiz rawak (0.75x - 1.2x)
+          rotation = Math.floor(Math.random() * 360); // rotasi rawak
+        }
+
+        q.push({
+          targetShape: shape,
+          scale: scale,
+          rotation: rotation
+        });
+      }
+      return q;
+    }
+
+    // RENDER SOALAN SEMASA
+    function renderCurrentQuestion() {
+      const q = questionsList[currentQuestionIndex];
+      const totalQ = questionsList.length;
+
+      // Kemaskini HUD kemajuan soalan
+      document.getElementById('hud-level').innerText = `Level ${currentLevel}`;
+      document.getElementById('question-tracker').innerText = `${currentQuestionIndex + 1} / ${totalQ}`;
+
+      // Lukis SVG Poligon
+      const svgContainer = document.getElementById('svg-container');
+      svgContainer.innerHTML = createPolygonSVG(q.targetShape.sides, q.targetShape.color, q.rotation, q.scale);
+
+      // Bina Pilihan Jawapan (Kad Drag)
+      // Pastikan ada jawapan betul dan jawapan pengacau
+      let options = [q.targetShape.name];
+      while (options.length < 4) {
+        const randName = SHAPES_DATA[Math.floor(Math.random() * SHAPES_DATA.length)].name;
+        if (!options.includes(randName)) {
+          options.push(randName);
+        }
+      }
+      // Acak susunan pilihan
+      options.sort(() => Math.random() - 0.5);
+
+      const optionsContainer = document.getElementById('options-container');
+      optionsContainer.innerHTML = '';
+
+      options.forEach((optName) => {
+        const card = document.createElement('div');
+        card.className = "draggable-card bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 px-4 rounded-xl border border-slate-600 shadow-md text-center flex items-center justify-center gap-2 select-none";
+        card.setAttribute('draggable', 'true');
+        card.setAttribute('data-name', optName);
+        card.innerHTML = `<i class="fa-solid fa-grip-vertical text-slate-500 text-xs"></i> ${optName}`;
+        
+        // Touch events untuk telefon bimbit/tablet
+        card.addEventListener('touchstart', handleTouchStart, { passive: false });
+        card.addEventListener('touchmove', handleTouchMove, { passive: false });
+        card.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        optionsContainer.appendChild(card);
+      });
+
+      // Padam mesej maklum balas lama
+      hideFeedback();
+    }
+
+    // JANA KOD SVG POLIGON SAMA SISI TEPAT
+    function createPolygonSVG(sides, color, rotation = 0, scale = 1) {
+      const size = 200;
+      const center = size / 2;
+      const radius = (size / 2 - 20) * scale;
+      let points = [];
+
+      for (let i = 0; i < sides; i++) {
+        // Mengira sudut dalam radian
+        const angle = (i * 2 * Math.PI / sides) - (Math.PI / 2) + (rotation * Math.PI / 180);
+        const x = center + radius * Math.cos(angle);
+        const y = center + radius * Math.sin(angle);
+        points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+      }
+
+      const pointsStr = points.join(" ");
+
+      return `
+        <svg width="100%" height="100%" viewBox="0 0 ${size} ${size}" class="drop-shadow-2xl">
+          <defs>
+            <linearGradient id="polyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="${color}" stop-opacity="0.9"/>
+              <stop offset="100%" stop-color="${color}" stop-opacity="0.6"/>
+            </linearGradient>
+          </defs>
+          <polygon points="${pointsStr}" 
+                   fill="url(#polyGrad)" 
+                   stroke="#FFFFFF" 
+                   stroke-width="4" 
+                   stroke-linejoin="round"/>
+          <!-- Titik Bucu -->
+          ${points.map(pt => {
+            const [px, py] = pt.split(',');
+            return `<circle cx="${px}" cy="${py}" r="4" fill="#FFFFFF"/>`;
+          }).join('')}
+        </svg>
+      `;
+    }
+
+    // HANDLING DRAG AND DROP (HTML5 & TOUCH)
+    function initDragAndDropHandlers() {
+      const dropTarget = document.getElementById('drop-target');
+
+      dropTarget.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropTarget.classList.add('drag-over');
+      });
+
+      dropTarget.addEventListener('dragleave', () => {
+        dropTarget.classList.remove('drag-over');
+      });
+
+      dropTarget.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropTarget.classList.remove('drag-over');
+        if (draggedOption) {
+          semakJawapan(draggedOption);
+        }
+      });
+
+      // Standard Drag Start Event Listener via delegation
+      document.addEventListener('dragstart', (e) => {
+        if (e.target.classList.contains('draggable-card')) {
+          draggedOption = e.target.getAttribute('data-name');
+          e.target.classList.add('opacity-50');
+        }
+      });
+
+      document.addEventListener('dragend', (e) => {
+        if (e.target.classList.contains('draggable-card')) {
+          e.target.classList.remove('opacity-50');
+        }
+      });
+    }
+
+    // SOKONGAN SENTUHAN SKRIN PERANTI (MOBILE TOUCH DRAG)
+    let touchElem = null;
+
+    function handleTouchStart(e) {
+      e.preventDefault();
+      touchElem = e.currentTarget;
+      draggedOption = touchElem.getAttribute('data-name');
+      touchElem.classList.add('opacity-50', 'scale-105');
+    }
+
+    function handleTouchMove(e) {
+      if (!touchElem) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dropTarget = document.getElementById('drop-target');
+      const rect = dropTarget.getBoundingClientRect();
+
+      if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+          touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        dropTarget.classList.add('drag-over');
+      } else {
+        dropTarget.classList.remove('drag-over');
+      }
+    }
+
+    function handleTouchEnd(e) {
+      if (!touchElem) return;
+      e.preventDefault();
+      touchElem.classList.remove('opacity-50', 'scale-105');
+      const dropTarget = document.getElementById('drop-target');
+      dropTarget.classList.remove('drag-over');
+
+      const touch = e.changedTouches[0];
+      const rect = dropTarget.getBoundingClientRect();
+
+      if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+          touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        semakJawapan(draggedOption);
+      }
+      touchElem = null;
+    }
+
+    // PENGESAHAN JAWAPAN & LOGIK MARKAH
+    function semakJawapan(jawapanDiterima) {
+      const q = questionsList[currentQuestionIndex];
+      const jawapanBetul = q.targetShape.name;
+
+      if (jawapanDiterima === jawapanBetul) {
+        // JAWAPAN BETUL
+        score += 10;
+        updateHUD();
+        showFeedback(true, `TEPAT! Ini ialah ${jawapanBetul} (${q.targetShape.sides} sisi).`);
+
+        // Kesan visual Confetti ringkas
+        confetti({ particleCount: 30, spread: 60, origin: { y: 0.7 } });
+
+        setTimeout(() => {
+          langkahSeterusnya();
+        }, 1200);
+
+      } else {
+        // JAWAPAN SALAH -> TOLAK NYAWA
+        lives -= 1;
+        updateHUD();
+        showFeedback(false, `SALAH! BUKAN ${jawapanDiterima}. CUBA LAGI!`);
+
+        // Animasi Shake
+        const board = document.getElementById('puzzle-board');
+        board.classList.add('animate-bounce');
+        setTimeout(() => board.classList.remove('animate-bounce'), 500);
+
+        // Periksa jika nyawa habis
+        if (lives <= 0) {
+          setTimeout(() => {
+            tamatPermainan(false);
+          }, 1000);
+        }
+      }
+    }
+
+    // PERALIHAN SOALAN ATAU LEVEL
+    function langkahSeterusnya() {
+      currentQuestionIndex++;
+
+      if (currentQuestionIndex < questionsList.length) {
+        renderCurrentQuestion();
+      } else {
+        // Selesai soalan dalam level semasa
+        if (currentLevel === 1) {
+          loadLevel(2);
+        } else if (currentLevel === 2) {
+          loadLevel(3);
+        } else {
+          // Berjaya menyelesaikan kesemua 3 level!
+          tamatPermainan(true);
+        }
+      }
+    }
+
+    // KEMASKINI HUD (SCORE & LIVES)
+    function updateHUD() {
+      document.getElementById('hud-score').innerText = score;
+      
+      const livesContainer = document.getElementById('hud-lives');
+      livesContainer.innerHTML = '';
+      for (let i = 0; i < 3; i++) {
+        if (i < lives) {
+          livesContainer.innerHTML += `<i class="fa-solid fa-heart text-red-500"></i>`;
+        } else {
+          livesContainer.innerHTML += `<i class="fa-regular fa-heart text-slate-600"></i>`;
+        }
+      }
+    }
+
+    // TAMPILKAN MESEJ MAKLUM BALAS
+    function showFeedback(isCorrect, text) {
+      const fb = document.getElementById('feedback-message');
+      fb.classList.remove('hidden', 'bg-green-500/20', 'text-green-300', 'border-green-500', 'bg-red-500/20', 'text-red-300', 'border-red-500');
+      
+      if (isCorrect) {
+        fb.classList.add('bg-green-500/20', 'text-green-300', 'border', 'border-green-500');
+      } else {
+        fb.classList.add('bg-red-500/20', 'text-red-300', 'border', 'border-red-500');
+      }
+      fb.innerText = text;
+    }
+
+    function hideFeedback() {
+      document.getElementById('feedback-message').classList.add('hidden');
+    }
+
+    // TAMAT PERMAINAN (MENANG / GAMEOVER)
+    function tamatPermainan(isWin) {
+      stopTimer();
+
+      // Sembunyi Gameplay & HUD
+      document.getElementById('screen-game').classList.add('hidden');
+      document.getElementById('hud-bar').classList.add('hidden');
+      document.getElementById('screen-result').classList.remove('hidden');
+
+      const statusStr = isWin ? "Menang" : "Tamat";
+      const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+      const secs = String(timerSeconds % 60).padStart(2, '0');
+      const masaFormatted = `${mins}:${secs}`;
+
+      // Kemaskini Paparan Keputusan
+      document.getElementById('res-nama').innerText = player.nama;
+      document.getElementById('res-kelas').innerText = player.kelas;
+      document.getElementById('res-skor').innerText = `${score} / 280`;
+      document.getElementById('res-masa').innerText = masaFormatted;
+      document.getElementById('res-nyawa').innerText = `${lives} / 3`;
+
+      const iconBox = document.getElementById('result-icon-container');
+      const titleElem = document.getElementById('result-title');
+      const subtitleElem = document.getElementById('result-subtitle');
+      const statusBadge = document.getElementById('res-status');
+
+      if (isWin) {
+        iconBox.className = "w-20 h-20 mx-auto rounded-full flex items-center justify-center text-4xl mb-4 shadow-xl bg-polygreen text-slate-950";
+        iconBox.innerHTML = `<i class="fa-solid fa-trophy"></i>`;
+        titleElem.innerText = "TAHNIAH! MISI SELESAI!";
+        subtitleElem.innerText = "Anda telah menguasai konsep poligon dengan cemerlang!";
+        statusBadge.className = "px-3 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500";
+        statusBadge.innerText = "MENANG";
+
+        // Mega Confetti
+        confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
+      } else {
+        iconBox.className = "w-20 h-20 mx-auto rounded-full flex items-center justify-center text-4xl mb-4 shadow-xl bg-red-500 text-white";
+        iconBox.innerHTML = `<i class="fa-solid fa-heart-crack"></i>`;
+        titleElem.innerText = "CUBA LAGI!";
+        subtitleElem.innerText = "Nyawa anda telah habis. Teruskan usaha dan cuba sekali lagi!";
+        statusBadge.className = "px-3 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500";
+        statusBadge.innerText = "TAMAT";
+      }
+
+      // HANTAR DATA KE GOOGLE SHEETS
+      hantarDataKeGoogleSheets({
+        namaMurid: player.nama,
+        kelas: player.kelas,
+        skor: score,
+        tempohMasa: masaFormatted,
+        bakiNyawa: lives,
+        status: statusStr
+      });
+    }
+
+    // PENYIMPANAN DATA KE GOOGLE SHEETS VIA GOOGLE APPS SCRIPT API
+    function hantarDataKeGoogleSheets(payload) {
+      const statusDiv = document.getElementById('save-status');
+      statusDiv.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-polyblue"></i> Menyimpan rekod ke Google Sheets...`;
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.success) {
+              statusDiv.innerHTML = `<span class="text-green-400"><i class="fa-solid fa-circle-check"></i> Rekod berjaya disimpan dalam Google Sheets!</span>`;
+            } else {
+              statusDiv.innerHTML = `<span class="text-amber-400"><i class="fa-solid fa-triangle-exclamation"></i> Amaran: ${res ? res.message : 'Gagal menyimpan data'}</span>`;
+            }
+          })
+          .withFailureHandler((err) => {
+            statusDiv.innerHTML = `<span class="text-red-400"><i class="fa-solid fa-circle-xmark"></i> Ralat: ${err.message}</span>`;
+          })
+          .simpanRekod(payload);
+      } else {
+        // Simulasi mod pembangunan tanpa persekitaran Google Apps Script
+        setTimeout(() => {
+          statusDiv.innerHTML = `<span class="text-slate-400"><i class="fa-solid fa-info-circle"></i> [Mod Demo] Rekod bersedia untuk Google Sheets.</span>`;
+        }, 1000);
+      }
+    }
+
+    // MAIN SEMULA
+    function semulaPermainan() {
+      document.getElementById('screen-result').classList.add('hidden');
+      document.getElementById('screen-start').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
